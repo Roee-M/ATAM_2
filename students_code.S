@@ -12,7 +12,7 @@ read_input:
     
     # GET PATH #
     pushq %rdi # saving parameter *codeword
-    mov path(%rip), %rdi # moving parameter to rdi
+    lea path(%rip), %rdi # moving parameter to rdi
     call get_path
     
     # OPEN THE FILE #
@@ -23,23 +23,26 @@ read_input:
     
     # READ THE FILE - THE NUMBER #
     mov %rax, %rdi # RDI now is the descriptor of the FILE
-    mov $1, %rdx 
-    mov path(%rip), %rsi
-    mov $0, %r9 # r9 is the offset
+    movq $1, %rdx # number of bytes to read
+    lea path(%rip), %rsi
+    movq $0, %r9 # r9 is the offset
     read_till_a: 
-        mov $0, %rax
-        add %r9, %rsi 
+        movq $0, %rax
+        # add %r9, %rsi 
         syscall 
-        inc %r9  
-        cmp $0xa, (%rsi)
-        jne read_till_a
+        cmp $0x0a, (%rsi)
+        je out_read_till_a 
+        # inc %r9  
+        # inc %rsi
+        jmp read_till_a
 
     # finish_read_till_a #
+    out_read_till_a:
     movb $0x00, (%rsi) # adding null termination
     
     # CALLING ATAM_ATOL #
     pushq %rdi  # caller convention - rdi is the descriptor of the FILE
-    mov path(%rip), %rdi # parameter
+    lea path(%rip), %rdi # parameter
     call atam_atol # after the function - rax is the number of bytes to read - LONG type
     popq %rdi # caller convention - poping the descriptor
 
