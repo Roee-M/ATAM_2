@@ -9,68 +9,90 @@ read_input:
     # calee convention -PROLOGUE #
     pushq %rbp
     movq %rsp, %rbp
+    pushq %rbx
+    pushq %r12
+    pushq %r13
+    pushq %r14
+    pushq %r15
+    
+
+    /* not to use: rax, rdi, rsi, rdx, rcx, r8, r9, r10, r11 */
     
     # GET PATH #
     pushq %rdi # saving parameter *codeword
-    lea path(%rip), %rdi # moving parameter to rdi
+    leaq path(%rip), %rdi # moving parameter to rdi
     call get_path
     
     # OPEN THE FILE #
-    mov path(%rip), %rdi
-    mov $2,%rax
+    # movq path(%rip), %rdi
+    pop %rdi
+    movq %rdi, %rbx # saving rdi for after syscall !!!!!!!!!!
+    movq $2,%rax
     xor %rsi,%rsi # rsi = 0 for reading only
     syscall
     
     # READ THE FILE - THE NUMBER #
-    mov %rax, %rdi # RDI now is the descriptor of the FILE
-    movq $1, %rdx # number of bytes to read
-    lea path(%rip), %rsi
-    movq $0, %r9 # r9 is the offset
+    movq %rax, %r12 # r12 now is the descriptor of the FILE
+    movq $0, %r13 # r13 is the offset
+    sub $16, %rsp # allocating memory on the stack
     read_till_a: 
-        movq $0, %rax
-        # add %r9, %rsi 
-        syscall 
-        cmp $0x0a, (%rsi)
+        movq $0, %rax   
+        movq %r12, %rdi
+        movq $1, %rdx # number of bytes to read 
+        lea (%rsp, %r13, 1), %rsi
+        syscall
+	lea (%rsp, %r13), %r9
+        movb %r9b, %r8b
+        cmp $0x0a, %r9b
         je out_read_till_a 
-        # inc %r9  
-        # inc %rsi
+        inc %r13  
         jmp read_till_a
 
     # finish_read_till_a #
     out_read_till_a:
-    movb $0x00, (%rsi) # adding null termination
+    lea (%rsp, %r13, 1), %rsi
+    movb $0x00, (%rsi) # adding null termination at the end
     
     # CALLING ATAM_ATOL #
-    pushq %rdi  # caller convention - rdi is the descriptor of the FILE
-    lea path(%rip), %rdi # parameter
+    movq %rsp, %rdi # parameter
     call atam_atol # after the function - rax is the number of bytes to read - LONG type
-    popq %rdi # caller convention - poping the descriptor
 
     # READ THE FILE - THE codword content #
-    mov $1, %rdx 
-    popq %rsi # retriving the *codeword - mov codeword, %rsi
-    mov $0, %r9 # r9 is the offset
-    mov %rax, %r8 # the number of bytes to read is now in r8
+    /* mov $0, %r13 # r13 is the offset
+    mov %rax, %r15 # the number of bytes to read is now in r8
     read_to_codeword: 
         mov $0, %rax
-        add %r9, %rsi # we read to rsi + r9
+        movq %r12, %rdi
+        movq $1, %rdx # number of bytes to read 
+        lea (%rbx, %r13, 1), %rsi 
         syscall 
-        inc %r9 # inc the index
-        cmp %r9, %r8 
-        ja read_to_codeword # while  r9 < r8
-    # finish_read_to_codeword #        
+        inc %r13 # inc the index
+        cmp %r13, %r15
+        ja read_to_codeword # while  r9 < r8 */
+    movq %rax, %r15
+    movq %rax, %rdx # number of bytes to read 
+    mov $0, %rax
+    movq %r12, %rdi
+    movq %rbx, %rsi 
+    syscall 
     
     # CLOSING THE FILE #
-    mov $3, %rax 
+    mov $3, %rax
+    movq %r12, %rdi 
     syscall
     
     # calculating the num_of_buyes/8 #
-    shr %r8
-    shr %r8
-    shr %r8
-    mov %r8, %rax
+    shr %r15
+    shr %r15
+    shr %r15
+    mov %r15, %rax
     
     ##EPILOGUE##
+    popq %rbx
+    popq %r12
+    popq %r13
+    popq %r14
+    popq %r15
     movq %rbp, %rsp
     popq %rbp
     ret
