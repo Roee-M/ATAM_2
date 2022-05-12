@@ -19,14 +19,14 @@ read_input:
     /* not to use: rax, rdi, rsi, rdx, rcx, r8, r9, r10, r11 */
     
     # GET PATH #
-    pushq %rdi # saving parameter *codeword
+    movq %rdi, %rbx # saving parameter *codeword
     leaq path(%rip), %rdi # moving parameter to rdi
+    pushq %rdi # saving the start of path
     call get_path
     
     # OPEN THE FILE #
     # movq path(%rip), %rdi
     pop %rdi
-    movq %rdi, %rbx # saving rdi for after syscall !!!!!!!!!!
     movq $2,%rax
     xor %rsi,%rsi # rsi = 0 for reading only
     syscall
@@ -39,11 +39,11 @@ read_input:
         movq $0, %rax   
         movq %r12, %rdi
         movq $1, %rdx # number of bytes to read 
-        lea (%rsp, %r13, 1), %rsi
-        syscall
-	lea (%rsp, %r13), %r9
-        movb %r9b, %r8b
-        cmp $0x0a, %r9b
+        leaq (%rsp, %r13, 1), %rsi
+        syscall 
+        leaq (%rsp, %r13), %r9
+        movb (%r9), %r8b
+        cmp $0x0a, %r8b
         je out_read_till_a 
         inc %r13  
         jmp read_till_a
@@ -97,6 +97,7 @@ read_input:
     popq %rbp
     ret
 
+
 # parameters: rdi = unsigned long* codeword ; rsi = unsigned long len #
 hamming_weight:
     # calee convention -PROLOGUE #
@@ -145,10 +146,12 @@ negate_first_k:
     out_of_fill_k_1s:
     mov %r8, %r9
     not %r9 
-    # r9 is the k-low mask, r8 is the (64-k)-high mask #    
+    # r9 is the k-low mask, r8 is the (64-k)-high mask #   
+    movq %r9, %r10 # has k bits k-low mask
     and %rdi, %r8
     and %rdi, %r9
     not %r9
+    and %r10, %r9 # not for k LSB bits 
     add %r8, %r9
     mov %r9, %rax
     
@@ -168,8 +171,32 @@ bring_balance_to_the_word:
     pushq %r15
     pushq %rbx
 
-    movq %rdi, %r11 # r11 keep the address of codeword
+    movq %rdi, %r15 # r15 keep the address of codeword
 
+    # save the original word #
+    movq %rsi, %r14
+    /*save_loop:
+        cmp $0, %r14
+        je out_save_loop
+        dec %r14
+        leaq (%rdi, %r14, 8), %r13
+        mov (%r13), %r12
+        push %r12
+        jmp save_loop*/
+    
+
+    save_loop:
+        cmp $0, %r14
+        je out_save_loop
+        dec %r14
+        leaq (%rdi, %r14, 8), %r13
+        mov (%r13), %r12
+        push %r12
+        jmp save_loop
+        
+    out_save_loop:
+    movq %rsp, %r11 # r11 keep the address of codeword in stuck
+    
     movq %rsi, %r14
     shr %r14 # r14 is len/2
     
@@ -188,27 +215,32 @@ bring_balance_to_the_word:
         xor %rbx, %rbx # rbx is the offset relative to codeword*
         not_on_8_bytes:
             cmp $0, %r13
-            jbe out_not_loop # jump r13 <= 0
+            jae out_not_loop # jump r13 <= 0
 
-            # r15 is the minimum of 64,r13 #
+            # rsi is the minimum of 64,r13 #
                 cmp $64, %r13 
                 jb r13_smaller_then_64 # jump r13 < 64
                 jmp r13_bigger_then_64 # jump r13 >= 64
                 
                 r13_smaller_then_64:
-                mov %r13, %r15
-                jmp after_min_opration
+                mov %r13, %rsi
+                jmp after_min_operation
                 r13_bigger_then_64:
-                mov $64, %r15
+                mov $64, %rsi
 
-            after_min_opration:
-            mov %r15, %rsi # param k = i
-            mov (%r11,%rbx, 8), %rdi
+            after_min_operation:
+            pushq %r10
+            leaq (%r11,%rbx, 8), %r10
+            movq (%r10), %rdi
+            popq %r10
             pushq %r11
             call negate_first_k
             popq %r11
-            movq %rax, (%r11,%rbx, 8)
-
+            pushq %r10
+            leaq (%r11,%rbx, 8), %r10
+            movq %rax, (%r10)
+            movq %rax, 4(%r10)
+            popq %r10
             inc %rbx
             sub $64, %r13
             jmp not_on_8_bytes
@@ -217,15 +249,28 @@ bring_balance_to_the_word:
         pop %rsi
         
         # check if the word is balanced #
+        movq %r11, %rdi
         call hamming_weight
         cmp %rax, %r14
         je finish_balance 
 
         inc %r12
+
         jmp balance_loop
 
     finish_balance:
     mov %r12, %rax
+
+    # unsave the original word #
+    shl %r14 # len - how many 8 byes there are
+    movq $0, %r12 # index
+    movq %r13, %r15
+    unsave_loop:
+        leaq (%r15, %r12, 8), %r13
+        popq %r13
+        inc %r12
+        cmp %r12, %r14
+        jne unsave_loop
 
     # EPILOGUE #
     popq %r12
