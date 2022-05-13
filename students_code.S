@@ -9,71 +9,94 @@ read_input:
     # calee convention -PROLOGUE #
     pushq %rbp
     movq %rsp, %rbp
+    pushq %rbx
+    pushq %r12
+    pushq %r13
+    pushq %r14
+    pushq %r15
+    
+
+    /* not to use: rax, rdi, rsi, rdx, rcx, r8, r9, r10, r11 */
     
     # GET PATH #
-    pushq %rdi # saving parameter *codeword
-    lea path(%rip), %rdi # moving parameter to rdi
+    movq %rdi, %rbx # saving parameter *codeword
+    leaq path(%rip), %rdi # moving parameter to rdi
+    pushq %rdi # saving the start of path
     call get_path
     
     # OPEN THE FILE #
-    mov path(%rip), %rdi
-    mov $2,%rax
+    # movq path(%rip), %rdi
+    pop %rdi
+    movq $2,%rax
     xor %rsi,%rsi # rsi = 0 for reading only
     syscall
     
     # READ THE FILE - THE NUMBER #
-    mov %rax, %rdi # RDI now is the descriptor of the FILE
-    movq $1, %rdx # number of bytes to read
-    lea path(%rip), %rsi
-    movq $0, %r9 # r9 is the offset
+    movq %rax, %r12 # r12 now is the descriptor of the FILE
+    movq $0, %r13 # r13 is the offset
+    sub $16, %rsp # allocating memory on the stack
     read_till_a: 
-        movq $0, %rax
-        # add %r9, %rsi 
+        movq $0, %rax   
+        movq %r12, %rdi
+        movq $1, %rdx # number of bytes to read 
+        leaq (%rsp, %r13, 1), %rsi
         syscall 
-        cmp $0x0a, (%rsi)
+        leaq (%rsp, %r13), %r9
+        movb (%r9), %r8b
+        cmp $0x0a, %r8b
         je out_read_till_a 
-        # inc %r9  
-        # inc %rsi
+        inc %r13  
         jmp read_till_a
 
     # finish_read_till_a #
     out_read_till_a:
-    movb $0x00, (%rsi) # adding null termination
+    lea (%rsp, %r13, 1), %rsi
+    movb $0x00, (%rsi) # adding null termination at the end
     
     # CALLING ATAM_ATOL #
-    pushq %rdi  # caller convention - rdi is the descriptor of the FILE
-    lea path(%rip), %rdi # parameter
+    movq %rsp, %rdi # parameter
     call atam_atol # after the function - rax is the number of bytes to read - LONG type
-    popq %rdi # caller convention - poping the descriptor
 
     # READ THE FILE - THE codword content #
-    mov $1, %rdx 
-    popq %rsi # retriving the *codeword - mov codeword, %rsi
-    mov $0, %r9 # r9 is the offset
-    mov %rax, %r8 # the number of bytes to read is now in r8
+    /* mov $0, %r13 # r13 is the offset
+    mov %rax, %r15 # the number of bytes to read is now in r8
     read_to_codeword: 
         mov $0, %rax
-        add %r9, %rsi # we read to rsi + r9
+        movq %r12, %rdi
+        movq $1, %rdx # number of bytes to read 
+        lea (%rbx, %r13, 1), %rsi 
         syscall 
-        inc %r9 # inc the index
-        cmp %r9, %r8 
-        ja read_to_codeword # while  r9 < r8
-    # finish_read_to_codeword #        
+        inc %r13 # inc the index
+        cmp %r13, %r15
+        ja read_to_codeword # while  r9 < r8 */
+    movq %rax, %r15
+    movq %rax, %rdx # number of bytes to read 
+    mov $0, %rax
+    movq %r12, %rdi
+    movq %rbx, %rsi 
+    syscall 
     
     # CLOSING THE FILE #
-    mov $3, %rax 
+    mov $3, %rax
+    movq %r12, %rdi 
     syscall
     
     # calculating the num_of_buyes/8 #
-    shr %r8
-    shr %r8
-    shr %r8
-    mov %r8, %rax
+    shr %r15
+    shr %r15
+    shr %r15
+    mov %r15, %rax
     
     ##EPILOGUE##
+    popq %rbx
+    popq %r12
+    popq %r13
+    popq %r14
+    popq %r15
     movq %rbp, %rsp
     popq %rbp
     ret
+
 
 # parameters: rdi = unsigned long* codeword ; rsi = unsigned long len #
 hamming_weight:
@@ -123,10 +146,12 @@ negate_first_k:
     out_of_fill_k_1s:
     mov %r8, %r9
     not %r9 
-    # r9 is the k-low mask, r8 is the (64-k)-high mask #    
+    # r9 is the k-low mask, r8 is the (64-k)-high mask #   
+    movq %r9, %r10 # has k bits k-low mask
     and %rdi, %r8
     and %rdi, %r9
     not %r9
+    and %r10, %r9 # not for k LSB bits 
     add %r8, %r9
     mov %r9, %rax
     
@@ -146,13 +171,31 @@ bring_balance_to_the_word:
     pushq %r15
     pushq %rbx
 
-    movq %rdi, %r11 # r11 keep the address of codeword
+    movq %rdi, %r15 # r15 keep the address of codeword
 
+    # save the original word #
     movq %rsi, %r14
-    shr %r14 # r14 is len/2
+    save_loop:
+        cmp $0, %r14
+        je out_save_loop
+        dec %r14
+        leaq (%rdi, %r14, 8), %r13
+        mov (%r13), %r12
+        push %r12
+        jmp save_loop
+        
+    out_save_loop:
+    movq %rsp, %r11 # r11 keep the address of codeword in stuck
+    
+    movq %rsi, %r14
+
     
     # check if the word is alrady balanced #
     movq $0, %r12 
+    shr %r14 # r14 is len/2
+    leaq (%r12, %r14, 8), %r14
+    leaq (%r12, %r14, 8), %r14 # r14 is half num of bits of codewords
+
     call hamming_weight
     cmp %rax, %r14
     je finish_balance     
@@ -166,27 +209,36 @@ bring_balance_to_the_word:
         xor %rbx, %rbx # rbx is the offset relative to codeword*
         not_on_8_bytes:
             cmp $0, %r13
-            jbe out_not_loop # jump r13 <= 0
+            jle out_not_loop # jump r13 <= 0
 
-            # r15 is the minimum of 64,r13 #
+            # rsi is the minimum of 64,r13 #
                 cmp $64, %r13 
                 jb r13_smaller_then_64 # jump r13 < 64
                 jmp r13_bigger_then_64 # jump r13 >= 64
                 
                 r13_smaller_then_64:
-                mov %r13, %r15
-                jmp after_min_opration
+                mov %r13, %rsi
+                jmp after_min_operation
                 r13_bigger_then_64:
-                mov $64, %r15
+                mov $64, %rsi
 
-            after_min_opration:
-            mov %r15, %rsi # param k = i
-            mov (%r11,%rbx, 8), %rdi
+            after_min_operation:
+            pushq %r10
+            leaq (%r11,%rbx, 8), %r10
+            movq (%r10), %rdi
+            popq %r10
+
             pushq %r11
+            pushq %r10
             call negate_first_k
+            popq %r10
             popq %r11
-            movq %rax, (%r11,%rbx, 8)
 
+            pushq %r10
+            leaq (%r11,%rbx, 8), %r10
+            movq %rax, (%r10)
+            popq %r10
+            
             inc %rbx
             sub $64, %r13
             jmp not_on_8_bytes
@@ -195,22 +247,53 @@ bring_balance_to_the_word:
         pop %rsi
         
         # check if the word is balanced #
+        movq %r11, %rdi
         call hamming_weight
         cmp %rax, %r14
         je finish_balance 
 
         inc %r12
+
+        push %r14
+        push %r13
+        push %r12
+
+        movq %rsi, %r14
+        reconstruction_word_loop:
+            cmp $0, %r14
+            je out_reconstruction_word_loop
+            dec %r14
+            leaq (%r15, %r14, 8), %r13
+            movq (%r13), %r12
+            movq %r12, (%r11, %r14, 8)
+            jmp reconstruction_word_loop
+
+        out_reconstruction_word_loop:
+        pop %r12
+        pop %r13
+        pop %r14
+        
         jmp balance_loop
 
     finish_balance:
     mov %r12, %rax
 
+    # unsave the original word #
+    movq $0, %r12 # index
+    movq %r15, %r13
+    unsave_loop:
+        leaq (%r15, %r12, 8), %r13
+        popq (%r13)
+        inc %r12
+        cmp %r12, %rsi
+        jne unsave_loop
+
     # EPILOGUE #
-    popq %r12
-    popq %r13
-    popq %r14
-    popq %r15
     popq %rbx
+    popq %r15
+    popq %r14
+    popq %r13
+    popq %r12
     movq %rbp, %rsp
     popq %rbp  
     ret
