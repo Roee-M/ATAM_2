@@ -30,12 +30,10 @@ void my_set_gate_offset(gate_desc *gate, unsigned long addr) {
 
 unsigned long my_get_gate_offset(gate_desc *gate) {
 // <STUDENT FILL> - HINT: NO NEED FOR INLINE ASSEMBLY
-unsigned long return_address = 0;
-return_address = gate->offset_high;
+unsigned long return_address = gate->offset_high;
 return_address = return_address << 16;
 return_address += gate->offset_middle;
 return_address = return_address << 16;
-return_address += gate->offset_low;
-return return_address;
+return return_address + gate->offset_low;
 // </STUDENT FILL>
 }
