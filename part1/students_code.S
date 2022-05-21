@@ -55,7 +55,7 @@ read_input:
     movb $0x00, (%rsi) # adding null termination at the end
     
     # CALLING ATAM_ATOL #
-    movq %rsp, %rldi # parameter
+    movq %rsp, %rdi # parameter
     call atam_atol # after the function - rax is the number of bytes to read - LONG type
 
     # READ THE FILE - THE codword content #
