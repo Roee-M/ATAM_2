@@ -2,21 +2,21 @@
 
 void my_store_idt(struct desc_ptr *idtr) {
 // <STUDENT FILL> - HINT: USE INLINE ASSEMBLY
-    asm("sidt %0; "
+    asm ("sidt %0;"
         :"=m"(*idtr)
         :
         :
-        );
+    );
 // </STUDENT FILL>
 }
 
 void my_load_idt(struct desc_ptr *idtr) {
 // <STUDENT FILL> - HINT: USE INLINE ASSEMBLY
-    asm("lidt %0;"
+    asm ("lidt %0;"
         :
         :"m"(*idtr)
         :
-        );
+    );
 // <STUDENT FILL>
 }
 
