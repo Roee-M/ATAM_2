@@ -4,13 +4,14 @@
 .align 4, 0x90
 my_ili_handler:
 	# Prolog #
+
 	pushq %rbp
 	movq %rsp, %rbp
-	phshq %rdi # ????? add    
-	movq (%rbp), %rdi # keep rip, that saved on stack, in rdi.
+	    
+	# movq (%rbp), %rdi # keep rip, that saved on stack, in rdi.
 
 	pushq %r8
-	# mov 8(%rsp), %r8 # keep rip, that saved on stack, in r8.
+	mov 8(%rsp), %r8 # keep rip, that saved on stack, in r8.
 	pushq %r9
 	pushq %r10
 	pushq %r11
@@ -24,23 +25,24 @@ my_ili_handler:
 	pushq %rdx
 	pushq %rbp
 	pushq %rsi
-	pushq %rsp
+	# pushq %rsp
+	pushq %rdi # ????? add
 
-	movq (%rdi), %rbx # rbx is the opcode low bit
+	movq (%r8), %rbx # rbx is the opcode low bit
 	xorq %rdi, %rdi # Prepares the RDI to be the input of "what_to_do"
-	xorq %rdx, %rdx
+	# xorq %rdx, %rdx
 
 	cmpb 0x0f, %bl
 	je opcode_is_two_bytes
 
 	opcode_is_one_byte:
-	movb %bl, %dil # ????? was %bl, %dl
+	movb (%r8), %dil # ????? was %bl, %dl
 	# ??? movq %rdx, %rdi # Prepares the RDI to be the input of "what_to_do"
 	jmp call_what_to_do
 
 	opcode_is_two_bytes:
-	movb %bh, %dil # ???? movb %bh, %dl
-	movq %rdx, %rdi # Prepares the RDI to be the input of "what_to_do"
+	movb 1(%r8), %dil # ???? movb %bh, %dl
+	# movq %rdx, %rdi # Prepares the RDI to be the input of "what_to_do"
 
 	call_what_to_do:
 	call what_to_do
@@ -49,9 +51,9 @@ my_ili_handler:
 
 	original_treatment_routine:
 	# Epilog #
-	popq %rsp
-	popq %rsi
 	popq %rdi
+	# popq %rsp
+	popq %rsi
 	popq %rbp
 	popq %rdx
 	popq %rcx
@@ -65,19 +67,18 @@ my_ili_handler:
 	popq %r10
 	popq %r9
 	popq %r8
-	popq %rdi
 	popq %rbp
 
-	jmp * old_ili_handler
+	jmp *old_ili_handler
 	jmp end_HW2
 
 	our_treatment_routine:
 	movq %rax, %rdi
 
 	# Epilog #
-	popq %rsp
-	popq %rsi
-	popq %rdi
+	popq %rdi # ????	
+	# popq %rsp
+	popq %rsi	
 	popq %rbp
 	popq %rdx
 	popq %rcx
@@ -92,10 +93,19 @@ my_ili_handler:
 	popq %r11
 	popq %r10
 	popq %r9
-	popq %r8
-	popq
-	popq %rbp
+	
+	cmpb $0xf, (%r8)
+	je two_b_offset
 
+	one_b_offset:
+	popq %r8
+	popq %rbp
+	addq $1, (%rsp)
+	jmp end_HW2	
+
+	two_b_offset:
+	popq %r8
+	popq %rbp
 	addq $2, (%rsp)
 
 	end_HW2:
