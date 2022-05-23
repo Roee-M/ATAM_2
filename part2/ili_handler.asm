@@ -24,27 +24,24 @@ my_ili_handler:
 	pushq %rdx	
 	pushq %rdi
 	pushq %rsi
-			
-	cmpb $0xF ,(%r8)
-	je opcode_is_two_bytes
 	
-	xor %rdi,%rdi
+	xor %rdi, %rdi	
+	cmpb $0xf, (%r8)
+	je opcode_is_two_bytes
+
+opcode_is_one_byte:
 	movb (%r8), %dil
 	jmp calling_what_to_do
 
 opcode_is_two_bytes:
-	xor %rdi , %rdi
 	movb 1(%r8), %dil
 
 calling_what_to_do:
 	call what_to_do
 	cmp $0,%rax
-	je GOT_ZERO_HW2
-	jmp GOT_NOT_ZERO_HW2
-	# ########### jne our_treatment_routine
+	jne our_treatment_routine
 
-# ########### original_treatment_routine:
-GOT_ZERO_HW2:
+original_treatment_routine:
 	# Epilog #
 	popq %rsi
 	popq %rdi
@@ -65,13 +62,12 @@ GOT_ZERO_HW2:
 	jmp *old_ili_handler
 	jmp end_HW2
 
-# ########### our_treatment_routine:
-GOT_NOT_ZERO_HW2:
+our_treatment_routine:
 	# Epilog #
 	popq %rsi
 	popq %rdi
 	popq %rdx
-	popq %rcx
+	popq %rcx	
 	popq %rbx	
 	movq %rax, %rdi
 	popq %rax
@@ -82,36 +78,20 @@ GOT_NOT_ZERO_HW2:
 	popq %r11
 	popq %r10
 	popq %r9
+
+ 	cmpb $0xf, (%r8)
+ 	je two_b_offset
+
+one_b_offset:
+ 	popq %r8
+  	popq %rbp
+ 	addq $1, (%rsp)
+ 	jmp end_HW2
 	
-	cmpb $0xF ,(%r8)
-	jne ONE_BYTE_OFFSET_HW2
-	
+two_b_offset:
 	popq %r8
 	popq %rbp
-	addq $2,(%rsp)
-	jmp RET_HW2
-
-ONE_BYTE_OFFSET_HW2:
-	popq %r8
-	popq %rbp
-	addq $1,(%rsp)
-
+	addq $2, (%rsp)
 
 end_HW2:
-	iretq
-
-
-
-
-# 	je two_b_offset
-# 
-# one_b_offset:
-# 	popq %r8
-#	popq %rbp
-#	addq $1,(%rsp)
-#	jmp RET_HW2
-
-# two_b_offset:
-# 	popq %r8
-# 	popq %rbp
-#	addq $2,(%rsp)
+iretq
