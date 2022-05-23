@@ -1,0 +1,5 @@
+Input: 0x1e2d0d2d2e2f1d0e, 0x2d0d1f2d2d1d0f0f, 0x2f2d1f2e1f1e1f0d, 0xf1e1d0d1d2d0f0e
+Hamming weight: 128
+After negating the first 5 bits of the first 8-byte: 0x1e2d0d2d2e2f1d11
+The index at which Knuth's algorithm stopped: 0
+The balanced word: 0x1e2d0d2d2e2f1d0e, 0x2d0d1f2d2d1d0f0f, 0x2f2d1f2e1f1e1f0d, 0xf1e1d0d1d2d0f0e
