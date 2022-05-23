@@ -4,14 +4,13 @@
 .align 4, 0x90
 my_ili_handler:
 	# Prolog #
-
+	
 	pushq %rbp
 	movq %rsp, %rbp
-	    
-	# movq (%rbp), %rdi # keep rip, that saved on stack, in rdi.
 
-	pushq %r8
-	mov 8(%rsp), %r8 # keep rip, that saved on stack, in r8.
+	pushq %r8	
+	movq 8(%rbp), %r8 # keep rip, that saved on stack, in r8.
+
 	pushq %r9
 	pushq %r10
 	pushq %r11
@@ -22,42 +21,36 @@ my_ili_handler:
 	pushq %rax
 	pushq %rbx
 	pushq %rcx
-	pushq %rdx
-	pushq %rbp
+	pushq %rdx	
+	pushq %rdi
 	pushq %rsi
-	# pushq %rsp
-	pushq %rdi # ????? add
-
-	movq (%r8), %rbx # rbx is the opcode low bit
-	xorq %rdi, %rdi # Prepares the RDI to be the input of "what_to_do"
-	# xorq %rdx, %rdx
-
-	cmpb 0x0f, %bl
+			
+	cmpb $0xF ,(%r8)
 	je opcode_is_two_bytes
+	
+	xor %rdi,%rdi
+	movb (%r8), %dil
+	jmp calling_what_to_do
 
-	opcode_is_one_byte:
-	movb (%r8), %dil # ????? was %bl, %dl
-	# ??? movq %rdx, %rdi # Prepares the RDI to be the input of "what_to_do"
-	jmp call_what_to_do
+opcode_is_two_bytes:
+	xor %rdi , %rdi
+	movb 1(%r8), %dil
 
-	opcode_is_two_bytes:
-	movb 1(%r8), %dil # ???? movb %bh, %dl
-	# movq %rdx, %rdi # Prepares the RDI to be the input of "what_to_do"
-
-	call_what_to_do:
+calling_what_to_do:
 	call what_to_do
-	cmpq $0, %rax
-	jne our_treatment_routine
+	cmp $0,%rax
+	je GOT_ZERO_HW2
+	jmp GOT_NOT_ZERO_HW2
+	# ########### jne our_treatment_routine
 
-	original_treatment_routine:
+# ########### original_treatment_routine:
+GOT_ZERO_HW2:
 	# Epilog #
-	popq %rdi
-	# popq %rsp
 	popq %rsi
-	popq %rbp
+	popq %rdi
 	popq %rdx
 	popq %rcx
-	popq %rbx
+	popq %rbx	
 	popq %rax
 	popq %r15
 	popq %r14
@@ -72,19 +65,15 @@ my_ili_handler:
 	jmp *old_ili_handler
 	jmp end_HW2
 
-	our_treatment_routine:
-	movq %rax, %rdi
-
+# ########### our_treatment_routine:
+GOT_NOT_ZERO_HW2:
 	# Epilog #
-	popq %rdi # ????	
-	# popq %rsp
-	popq %rsi	
-	popq %rbp
+	popq %rsi
+	popq %rdi
 	popq %rdx
 	popq %rcx
-	popq %rbx
+	popq %rbx	
 	movq %rax, %rdi
-
 	popq %rax
 	popq %r15
 	popq %r14
@@ -94,19 +83,35 @@ my_ili_handler:
 	popq %r10
 	popq %r9
 	
-	cmpb $0xf, (%r8)
-	je two_b_offset
-
-	one_b_offset:
+	cmpb $0xF ,(%r8)
+	jne ONE_BYTE_OFFSET_HW2
+	
 	popq %r8
 	popq %rbp
-	addq $1, (%rsp)
-	jmp end_HW2	
+	addq $2,(%rsp)
+	jmp RET_HW2
 
-	two_b_offset:
+ONE_BYTE_OFFSET_HW2:
 	popq %r8
 	popq %rbp
-	addq $2, (%rsp)
+	addq $1,(%rsp)
 
-	end_HW2:
+
+end_HW2:
 	iretq
+
+
+
+
+# 	je two_b_offset
+# 
+# one_b_offset:
+# 	popq %r8
+#	popq %rbp
+#	addq $1,(%rsp)
+#	jmp RET_HW2
+
+# two_b_offset:
+# 	popq %r8
+# 	popq %rbp
+#	addq $2,(%rsp)
