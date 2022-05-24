@@ -179,16 +179,17 @@ bring_balance_to_the_word:
 	
 	xor %r14, %r14
 	movq %rsi, %r14
-	shr %r14 # r14 is len/2
-	
+	# shr %r14 # r14 is len/2
+	sal $5, %r14	
+
 	xor %r13, %r13 # count 8 bits sections
 	
-	xor %r12, %r12 # holds the result
+	xor %r12, %r12 
+	inc %r12 # the loop index "k" for calling negate_first_k
 	
 	movq %rsi, %r10 # n/8 for calling hamming_weight
 	
-	xor %r9, %r9 
-	inc %r9 # the loop index "k" for calling negate_first_k
+	xor %r8, %r8 # holds the result
 	
 	balance_loop:
 		movq (%r15,%r13, 8), %rdi
@@ -196,41 +197,41 @@ bring_balance_to_the_word:
 		check_if_the_word_is_balanced:
 			pushq %rdi
 			pushq %r10
-			pushq %r9
-		    movq %r15, %rdi
+			pushq %r8
+		    	movq %r15, %rdi
 			movq %r10, %rsi
 			call hamming_weight
-			popq %r9
+			popq %r8
 			popq %r10
 			popq %rdi
 			cmp %rax, %r14
 			je finish_balance 
 			
 		nagate:
-			cmp $65, %r9
+			cmp $65, %r12
 			je setup_next_section
 			pushq %rdi
 			pushq %r10
-			movq %r9, %rsi
-			pushq %r9
+			pushq %r8
+			movq %r12, %rsi
 			call negate_first_k
-			popq %r9
+			popq %r8
 			popq %r10
 			popq %rdi
-			inc %r9
+			inc %r8
 			inc %r12
 			movq %rax, (%r15, %r13 ,8)
 			jmp check_if_the_word_is_balanced
 			
 		setup_next_section:
 			inc %r13
-			xor %r9, %r9
-			inc %r9
+			xor %r12, %r12
+			inc %r12
 			jmp balance_loop
 			
 		
 	finish_balance:
-	mov %r12, %rax
+	mov %r8, %rax
 	
 	# EPILOGUE #
 	popq %r15
