@@ -155,79 +155,91 @@ negate_first_k:
     add %r8, %r9
     mov %r9, %rax
     
-    ##EPILOGUE##
+    # EPILOGUE #
     movq %rbp, %rsp
     popq %rbp  
     ret
 
 
-
+# parameters: rdi = unsigned long* codeword ; rsi = unsigned long len #
 bring_balance_to_the_word:
+	# PROLOGUE #
 	pushq %rbp
-	movq %rsp , %rbp
-	pushq %r12
-	pushq %r13
-	pushq %r14
-	pushq %r15
-	xor %r9, %r9 #result
-	xor %r10, %r10 #n/8 holds value
-	xor %r12, %r12 #length / 2
-	xor %r13, %r13 #base address
-	xor %r14, %r14 #k counter
-	xor %r15, %r15 # counts until %r10
-	mov %rsi, %r12
-	sal $5, %r12
-	inc %r14
-	mov %rdi, %r13
-	mov %rsi, %r10
-
-balanceLoop_HW2:
-	movq (%r13, %r15, 8), %rdi
-check_balance_HW2:
-	pushq %r9
-	pushq %r10
-	pushq %rdi
-	mov %r13, %rdi
-	mov %r10, %rsi	
-	call hamming_weight
-	popq %rdi #hozer
-	popq %r10
-	popq %r9
-	cmp %rax, %r12
-	je end_balance_HW2
-
+    movq %rsp, %rbp
+	pushq %rbx
+    pushq %r12
+    pushq %r13
+    pushq %r14
+    pushq %r15
 	
-inner_balance_loop_HW2:
-	cmp $65, %r14
-	je skip_inner_loop_HW2
-	movq %r14, %rsi
-	pushq %rdi
-	pushq %r10
-	pushq %r9
-	call negate_first_k
-	popq %r9
-	popq %r10
-	popq %rdi #hozer
-	movq %rax, (%r13, %r15, 8)
-	inc %r14
-	inc %r9
-	jmp check_balance_HW2
 	
-skip_inner_loop_HW2:
-	movq $1, %r14
-	inc %r15
-	jmp balanceLoop_HW2	
-
-
-end_balance_HW2:
+	# initialization paremeters #
+	xor %r15, %r15
+	movq %rdi, %r15 # r15 keep the address of codeword
+	
+	xor %r14, %r14
+	movq %rsi, %r14
+	shr %r14 # r14 is len/2
+	
+	xor %r13, %r13 # count 8 bits sections
+	
+	xor %r12, %r12 # holds the result
+	
+	movq %rsi, %r10 # n/8 for calling hamming_weight
+	
+	xor %r9, %r9 
+	inc %r9 # the loop index "k" for calling negate_first_k
+	
+	balance_loop:
+		movq (%r15,%r13, 8), %rdi
+		
+		check_if_the_word_is_balanced:
+			pushq %rdi
+			pushq %r10
+			pushq %r9
+		    movq %r15, %rdi
+			movq %r10, %rsi
+			call hamming_weight
+			popq %r9
+			popq %r10
+			popq %rdi
+			cmp %rax, %r14
+			je finish_balance 
+			
+		nagate:
+			cmp $65, %r9
+			je setup_next_section
+			pushq %rdi
+			pushq %r10
+			movq %r9, %rsi
+			pushq %r9
+			call negate_first_k
+			popq %r9
+			popq %r10
+			popq %rdi
+			inc %r9
+			inc %r12
+			movq %rax, (%r15, %r13 ,8)
+			jmp check_if_the_word_is_balanced
+			
+		setup_next_section:
+			inc %r13
+			xor %r9, %r9
+			inc %r9
+			jmp balance_loop
+			
+		
+	finish_balance:
+	mov %r12, %rax
+	
+	# EPILOGUE #
 	popq %r15
 	popq %r14
 	popq %r13
 	popq %r12
-	popq %rbp
-	mov %r9, %rax
-	
-	
-  ret
+	popq %rbx
+	movq %rbp, %rsp
+    popq %rbp 
+	ret
 
 
