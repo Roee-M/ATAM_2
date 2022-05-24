@@ -116,8 +116,8 @@ int main(void)
     TestPdf();
     TestOneWord();
     TestTwoWords();
-/*    TestTwoWordsPdf();
+    TestTwoWordsPdf();
     TestHammingWeight();
-    TestHammingWeight2();*/
+    TestHammingWeight2();
     return 0;
 }

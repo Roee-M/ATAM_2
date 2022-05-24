@@ -128,7 +128,6 @@ hamming_weight:
     popq %rbp
     ret
 
-
 # rdi = 8 byte codeword ; rsi = k #
 negate_first_k:
     # calee convention -PROLOGUE #
@@ -156,145 +155,92 @@ negate_first_k:
     add %r8, %r9
     mov %r9, %rax
     
-    ##EPILOGUE##
+    # EPILOGUE #
     movq %rbp, %rsp
     popq %rbp  
     ret
 
+
 # parameters: rdi = unsigned long* codeword ; rsi = unsigned long len #
 bring_balance_to_the_word:
-    # calee convention -PROLOGUE #
-    pushq %rbp
+	# PROLOGUE #
+	pushq %rbp
     movq %rsp, %rbp
+	pushq %rbx
     pushq %r12
     pushq %r13
     pushq %r14
     pushq %r15
-    pushq %rbx
+	
+	
+	# initialization paremeters #
+	xor %r15, %r15
+	movq %rdi, %r15 # r15 keep the address of codeword
+	
+	xor %r14, %r14
+	movq %rsi, %r14
+	# shr %r14 # r14 is len/2
+	sal $5, %r14	
 
-    movq %rdi, %r15 # r15 keep the address of codeword
+	xor %r13, %r13 # count 8 bits sections
+	
+	xor %r12, %r12 
+	inc %r12 # the loop index "k" for calling negate_first_k
+	
+	movq %rsi, %r10 # n/8 for calling hamming_weight
+	
+	xor %r8, %r8 # holds the result
+	
+	balance_loop:
+		movq (%r15,%r13, 8), %rdi
+		
+		check_if_the_word_is_balanced:
+			pushq %rdi
+			pushq %r10
+			pushq %r8
+		    	movq %r15, %rdi
+			movq %r10, %rsi
+			call hamming_weight
+			popq %r8
+			popq %r10
+			popq %rdi
+			cmp %rax, %r14
+			je finish_balance 
+			
+		nagate:
+			cmp $65, %r12
+			je setup_next_section
+			pushq %rdi
+			pushq %r10
+			pushq %r8
+			movq %r12, %rsi
+			call negate_first_k
+			popq %r8
+			popq %r10
+			popq %rdi
+			inc %r8
+			inc %r12
+			movq %rax, (%r15, %r13 ,8)
+			jmp check_if_the_word_is_balanced
+			
+		setup_next_section:
+			inc %r13
+			xor %r12, %r12
+			inc %r12
+			jmp balance_loop
+			
+		
+	finish_balance:
+	mov %r8, %rax
+	
+	# EPILOGUE #
+	popq %r15
+	popq %r14
+	popq %r13
+	popq %r12
+	popq %rbx
+	movq %rbp, %rsp
+    popq %rbp 
+	ret
 
-    # save the original word #
-    movq %rsi, %r14
-    save_loop:
-        cmp $0, %r14
-        je out_save_loop
-        dec %r14
-        leaq (%rdi, %r14, 8), %r13
-        mov (%r13), %r12
-        push %r12
-        jmp save_loop
-        
-    out_save_loop:
-    movq %rsp, %r11 # r11 keep the address of codeword in stuck
-    
-    movq %rsi, %r14
 
-    
-    # check if the word is alrady balanced #
-    movq $0, %r12 
-    shr %r14 # r14 is len/2
-    leaq (%r12, %r14, 8), %r14
-    leaq (%r12, %r14, 8), %r14 # r14 is half num of bits of codewords
-
-    call hamming_weight
-    cmp %rax, %r14
-    je finish_balance     
-
-    
-    inc %r12 # r12 is the loop index "i"
-    balance_loop:
-        # do not on the first i bits #
-        pushq %rsi
-        mov %r12, %r13 # r13 is the index of not_on_8_bytes_loop
-        xor %rbx, %rbx # rbx is the offset relative to codeword*
-        not_on_8_bytes:
-            cmp $0, %r13
-            jle out_not_loop # jump r13 <= 0
-
-            # rsi is the minimum of 64,r13 #
-                cmp $64, %r13 
-                jb r13_smaller_then_64 # jump r13 < 64
-                jmp r13_bigger_then_64 # jump r13 >= 64
-                
-                r13_smaller_then_64:
-                mov %r13, %rsi
-                jmp after_min_operation
-                r13_bigger_then_64:
-                mov $64, %rsi
-
-            after_min_operation:
-            pushq %r10
-            leaq (%r11,%rbx, 8), %r10
-            movq (%r10), %rdi
-            popq %r10
-
-            pushq %r11
-            pushq %r10
-            call negate_first_k
-            popq %r10
-            popq %r11
-
-            pushq %r10
-            leaq (%r11,%rbx, 8), %r10
-            movq %rax, (%r10)
-            popq %r10
-            
-            inc %rbx
-            sub $64, %r13
-            jmp not_on_8_bytes
-
-        out_not_loop: 
-        pop %rsi
-        
-        # check if the word is balanced #
-        movq %r11, %rdi
-        call hamming_weight
-        cmp %rax, %r14
-        je finish_balance 
-
-        inc %r12
-
-        push %r14
-        push %r13
-        push %r12
-
-        movq %rsi, %r14
-        reconstruction_word_loop:
-            cmp $0, %r14
-            je out_reconstruction_word_loop
-            dec %r14
-            leaq (%r15, %r14, 8), %r13
-            movq (%r13), %r12
-            movq %r12, (%r11, %r14, 8)
-            jmp reconstruction_word_loop
-
-        out_reconstruction_word_loop:
-        pop %r12
-        pop %r13
-        pop %r14
-        
-        jmp balance_loop
-
-    finish_balance:
-    mov %r12, %rax
-
-    # unsave the original word #
-    movq $0, %r12 # index
-    movq %r15, %r13
-    unsave_loop:
-        leaq (%r15, %r12, 8), %r13
-        popq (%r13)
-        inc %r12
-        cmp %r12, %rsi
-        jne unsave_loop
-
-    # EPILOGUE #
-    popq %rbx
-    popq %r15
-    popq %r14
-    popq %r13
-    popq %r12
-    movq %rbp, %rsp
-    popq %rbp  
-    ret
